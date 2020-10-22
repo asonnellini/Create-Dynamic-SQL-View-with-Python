@@ -12,22 +12,16 @@ connDetails = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE
 
 
 
+#cnxn = ft.openDb(connDetails)
 
-
-
-
-
-cnxn = ft.openDb(connDetails)
-
-cursor = cnxn.cursor()
 
 # columns of Survey = SurveyId, SurveyDescription, Survey_UsesrAdminId    
-SurveyCurrent = ft.SQLTableToDf(database, cnxn, "Survey", ["SurveyId"])
+SurveyCurrent = ft.SQLTableToDf(database, connDetails, "Survey", ["SurveyId"])
 
 # Columns = QuestionId, SurveyId, UserId, Answer_Value
-AnswerCurrent = ft.SQLTableToDf(database, cnxn, "Answer", ["SurveyId"])
+AnswerCurrent = ft.SQLTableToDf(database, connDetails, "Answer", ["SurveyId"])
 
-
+#cnxn.close()
 
 
 #	DECLARE @strQueryTemplateForOuterUnionQuery  nvarchar(max);
@@ -214,7 +208,9 @@ for indexSurveyCurrent, rowSurveyId in SurveyCurrent.iterrows():
 
 	print(currentQuestionQuery)
 
-	QuestionQueryTable = pd.read_sql_query(currentQuestionQuery, cnxn)
+	QuestionQueryTable = ft.queryDB(connDetails, currentQuestionQuery)
+
+	#QuestionQueryTable = pd.read_sql_query(currentQuestionQuery, cnxn)
 	
 #			DECLARE @currentSurveyIdInQuestion int;
 #			DECLARE @currentQuestionId int;
@@ -332,7 +328,7 @@ for indexSurveyCurrent, rowSurveyId in SurveyCurrent.iterrows():
 print(strFinalQuery)
 #	RETURN @strFinalQuery;
 
-result = pd.read_sql_query(strFinalQuery, cnxn)
+result = ft.queryDB(connDetails, strFinalQuery)
 
 print(result.head(4))
 

@@ -10,7 +10,7 @@ import logging
 
 import os
 
-def openDb(connDetails):
+def openDb(connDetails:str):
     """This function opens the connection to the Database
     
     Input:
@@ -37,13 +37,37 @@ def openDb(connDetails):
 
     return cnxn
 
-def SQLTableToDf(DBName:str, DBConnection, TableName:str, orderBy:str = None) -> pd.DataFrame:
+
+def queryDB(connDetails:str, queryString:str) -> pd.DataFrame:
+    """
+    This function returns in a dataframe the output of a query.
+    
+    Input:
+        - connDetails: connection string required by pyodbc.connect, e.g.: connDetails = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER='+ <serverName> +';DATABASE='+ <databaseName> + ';UID='+ <username> + ';PWD=' + <password>
+        - queryString: SQL Query
+
+    Output:
+        - result: a dataframe with the output of the query
+
+    """
+
+    cnxn = openDb(connDetails)
+
+    result = pd.read_sql_query(queryString, cnxn)
+
+    cnxn.close()
+
+    return result
+
+
+
+def SQLTableToDf(DBName:str, connDetails:str, TableName:str, orderBy:str = None) -> pd.DataFrame:
     """
     This function returns a dataframe having the same content as the SQL Table TableName belonging to the Database pointed
     by DBCursor.
     Input:
         - DBName: name of the SQL Database
-        - DBConnection: Connection to the SQL Database via pyodbc
+        - connDetails: Connection details to connect to the SQL Database via pyodbc
         - TableName: name of the original SQL Table
         - orderBy: columns based on which to order by
         
@@ -51,6 +75,9 @@ def SQLTableToDf(DBName:str, DBConnection, TableName:str, orderBy:str = None) ->
         - SQLdf = dataframe having the same content as the original SQL Table
     
     """
+    # Open connection
+    cnxn = openDb(connDetails)
+    
     #Initialize SQLdf
     SQLdf = None
 
@@ -63,9 +90,11 @@ def SQLTableToDf(DBName:str, DBConnection, TableName:str, orderBy:str = None) ->
         queryString += " ORDER BY """ + ",".join(orderBy) 
     
     try:
-        SQLdf = pd.read_sql_query(queryString, DBConnection)
+        SQLdf = pd.read_sql_query(queryString, cnxn)
     except Exception as ex:
         logging.critical("Cannot Download Data from the table {0} in the Database {1} with the following query: \n{2}".format( TableName, DBName, queryString ))
+    
+    cnxn.close()
 
     return SQLdf
 

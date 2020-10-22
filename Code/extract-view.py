@@ -44,8 +44,6 @@ cnxn = ft.openDb(connDetails)
 
 logging.info("Connection with {0} open".format(database))
 
-# Cursor to DB
-cursor = cnxn.cursor()
 
 ########### DOWNLOAD SurveyStructure
 
