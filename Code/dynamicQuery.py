@@ -10,326 +10,129 @@ password = 'sonne4ever'
 
 connDetails = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password
 
+#def createDynamicQueryForView(connDetails:str) -> str:
 
+#	#Download the content of Survey
+#	SurveyCurrent = ft.SQLTableToDf(connDetails, "Survey", ["SurveyId"])
 
-#cnxn = ft.openDb(connDetails)
+#	# Outer query template
+#	strQueryTemplateForOuterUnionQuery = """
+#			SELECT
+#						UserId
+#						, <SURVEY_ID> as SurveyId
+#						, <DYNAMIC_QUESTION_ANSWERS>
+#				FROM
+#					[User] as u
+#				WHERE EXISTS
+#				(
+#						SELECT *
+#						FROM Answer as a
+#						WHERE u.UserId = a.UserId
+#						AND a.SurveyId = <SURVEY_ID>
+#				) """
 
+#	# Template for answer referring to questions which are part of the SurveyId in object
+#	strQueryTemplateForAnswerQuery = """
+#				COALESCE(
+#					(
+#						SELECT a.Answer_Value
+#						FROM Answer as a
+#						WHERE
+#							a.UserId = u.UserId
+#							AND a.SurveyId = <SURVEY_ID>
+#							AND a.QuestionId = <QUESTION_ID>
+#					), -1) AS ANS_Q<QUESTION_ID> """
 
-# columns of Survey = SurveyId, SurveyDescription, Survey_UsesrAdminId    
-SurveyCurrent = ft.SQLTableToDf(database, connDetails, "Survey", ["SurveyId"])
+#	# Template for answer referring to questions which are NOT part of the SurveyId in object
+#	strQueryTemplateForNullColumn = ' NULL AS ANS_Q<QUESTION_ID> '
 
-# Columns = QuestionId, SurveyId, UserId, Answer_Value
-AnswerCurrent = ft.SQLTableToDf(database, connDetails, "Answer", ["SurveyId"])
+#	# initialize
+#	strCurrentUnionQueryBlock = ''
 
-#cnxn.close()
+#	strFinalQuery = ''
 
+#	# Outer loop on each row of Survey table
+#	for indexSurveyCurrent, rowSurveyId in SurveyCurrent.iterrows():
 
-#	DECLARE @strQueryTemplateForOuterUnionQuery  nvarchar(max);
-#	DECLARE @strQueryTemplateForAnswerQuery  nvarchar(max);
-#	DECLARE @strQueryTemplateForNullColumn  nvarchar(max);
-
-#	DECLARE @currentSurveyId int;
-
-#	--When writing a dynamic SQL query
-#	-- Leave space between the text markers which have to replaced
-#	--	e.g <SURVEY_ID>, <DYNAMIC_QUESTION_ANSWERS>
-#	-- Make sure that the markers do not colide with any "real" SQL clauses, values, etc.
+#		# Extract only the field SurveyId
+#		currentSurveyId = rowSurveyId["SurveyId"]
 	
-#	-- This one is the bloc around UNION for each survey
-#	SET @strQueryTemplateForOuterUnionQuery = '
-		#SELECT
-		#			UserId
-		#			, <SURVEY_ID> as SurveyId
-		#			, <DYNAMIC_QUESTION_ANSWERS>
-		#	FROM
-		#		[User] as u
-		#	WHERE EXISTS
-		#	(
-		#			SELECT *
-		#			FROM Answer as a
-		#			WHERE u.UserId = a.UserId
-		#			AND a.SurveyId = <SURVEY_ID>
-		#	) ' ;
-
-strQueryTemplateForOuterUnionQuery = """
-		SELECT
-					UserId
-					, <SURVEY_ID> as SurveyId
-					, <DYNAMIC_QUESTION_ANSWERS>
-			FROM
-				[User] as u
-			WHERE EXISTS
-			(
-					SELECT *
-					FROM Answer as a
-					WHERE u.UserId = a.UserId
-					AND a.SurveyId = <SURVEY_ID>
-			) """
-
-#	-- this one will be used to iteratively replace <DYNAMIC_QUESTION_ANSWERS>
-
-#	-- Look at the templates, they do not end with a comma
-	#SET @strQueryTemplateForAnswerQuery = '
-	#		COALESCE(
-	#			(
-	#				SELECT a.Answer_Value
-	#				FROM Answer as a
-	#				WHERE
-	#					a.UserId = u.UserId
-	#					AND a.SurveyId = <SURVEY_ID>
-	#					AND a.QuestionId = <QUESTION_ID>
-	#			), -1) AS ANS_Q<QUESTION_ID> ';
-
-strQueryTemplateForAnswerQuery = """
-			COALESCE(
-				(
-					SELECT a.Answer_Value
-					FROM Answer as a
-					WHERE
-						a.UserId = u.UserId
-						AND a.SurveyId = <SURVEY_ID>
-						AND a.QuestionId = <QUESTION_ID>
-				), -1) AS ANS_Q<QUESTION_ID> """
-
-
-#	SET @strQueryTemplateForNullColumn = ' NULL AS ANS_Q<QUESTION_ID> ';
-
-strQueryTemplateForNullColumn = ' NULL AS ANS_Q<QUESTION_ID> '
-
-#	DECLARE @strCurrentUnionQueryBlock nvarchar(max);
-#	SET @strCurrentUnionQueryBlock = '';
-
-strCurrentUnionQueryBlock = ''
-
-#	DECLARE @strFinalQuery nvarchar(max);
-#	SET @strFinalQuery = '';
-
-strFinalQuery = ''
-
-#	--LOOP HERE -> Iterating over the surveys
-#	-- Iteration over data from a table --> with a CURSOR
-#	-- A CURSOR is essentially a file pointer
-#	-- Iteration row after row over a resultset
-#	-- A CURSOR is a variable, needed declared over a query
-
-#	--STRONG SYNTAX PARTICULARITY --> cursor variables DO NOT bear an @ symbol
-#	-- This doesn't "open" anything, the query is not run at this stage
-#	DECLARE surveyCursor CURSOR FOR
-#								SELECT SurveyId
-#								FROM Survey
-#								ORDER BY SurveyId;
-
-#	OPEN surveyCursor; -- When open, the cursor is "before" the first row 
-#						-- of the resultset
+#		# Query to mark with 1 Questions belonging to Survey currentSurveyId, 0 otherwise
+#		currentQuestionQuery =	""" SELECT *
+#						FROM
+#						(
+#							SELECT
+#								SurveyId,
+#								QuestionId,
+#								1 as InSurvey
+#							FROM
+#								SurveyStructure
+#							WHERE
+#								SurveyId = @currentSurveyId
+#							UNION
+#							SELECT 
+#								@currentSurveyId as SurveyId,
+#								Q.QuestionId,
+#								0 as InSurvey
+#							FROM
+#								Question as Q
+#							WHERE NOT EXISTS
+#							(
+#								SELECT *
+#								FROM SurveyStructure as S
+#								WHERE S.SurveyId = @currentSurveyId AND S.QuestionId = Q.QuestionId
+#							)
+#						) as t
+#						ORDER BY QuestionId; """
 	
-#	--We must iterate until "EOF", the end of the resultset
-#	-- If the resultset has multiple columns, the order of columns
-#	-- must be respected when feeding into local variables
-#	FETCH NEXT FROM surveyCursor INTO @currentSurveyId;
+#		currentQuestionQuery = currentQuestionQuery.replace("@currentSurveyId", str(currentSurveyId))
 
-# need data from current SurveyId
-
-for indexSurveyCurrent, rowSurveyId in SurveyCurrent.iterrows():
-
-	#currentSurveyId = SurveyId
-	currentSurveyId = rowSurveyId["SurveyId"]
-
-	print(currentSurveyId)
-
-#	WHILE @@FETCH_STATUS = 0 
-#	--If @@FETCH_STATUS is equal to 0, then a row can be read
-#	BEGIN
-			
-#			-- Main loop, iterating over the surveys
-#			-- For each survey, we have @currentSurveyId
-#			-- We need to construct the column "queries"
-
-#			-- We need to iterate of the survey questions
-#			-- given by the table SurveyStructure
-
-#			DECLARE currentQuestionCursor CURSOR FOR
-			#SELECT *
-			#		FROM
-			#		(
-			#			SELECT
-			#				SurveyId,
-			#				QuestionId,
-			#				1 as InSurvey
-			#			FROM
-			#				SurveyStructure
-			#			WHERE
-			#				SurveyId = @currentSurveyId
-			#			UNION
-			#			SELECT 
-			#				@currentSurveyId as SurveyId,
-			#				Q.QuestionId,
-			#				0 as InSurvey
-			#			FROM
-			#				Question as Q
-			#			WHERE NOT EXISTS
-			#			(
-			#				SELECT *
-			#				FROM SurveyStructure as S
-			#				WHERE S.SurveyId = @currentSurveyId AND S.QuestionId = Q.QuestionId
-			#			)
-			#		) as t
-			#		ORDER BY QuestionId;
-
-
-			
-	currentQuestionQuery =	""" SELECT *
-					FROM
-					(
-						SELECT
-							SurveyId,
-							QuestionId,
-							1 as InSurvey
-						FROM
-							SurveyStructure
-						WHERE
-							SurveyId = @currentSurveyId
-						UNION
-						SELECT 
-							@currentSurveyId as SurveyId,
-							Q.QuestionId,
-							0 as InSurvey
-						FROM
-							Question as Q
-						WHERE NOT EXISTS
-						(
-							SELECT *
-							FROM SurveyStructure as S
-							WHERE S.SurveyId = @currentSurveyId AND S.QuestionId = Q.QuestionId
-						)
-					) as t
-					ORDER BY QuestionId; """
+#		# Run the query
+#		QuestionQueryTable = ft.queryDB(connDetails, currentQuestionQuery)
 	
-	currentQuestionQuery = currentQuestionQuery.replace("@currentSurveyId", str(currentSurveyId))
-
-	print(currentQuestionQuery)
-
-	QuestionQueryTable = ft.queryDB(connDetails, currentQuestionQuery)
-
-	#QuestionQueryTable = pd.read_sql_query(currentQuestionQuery, cnxn)
+#		strColumnsQueryPart = ""
 	
-#			DECLARE @currentSurveyIdInQuestion int;
-#			DECLARE @currentQuestionId int;
-#			DECLARE @currentInSurvey int; 
+#		# loop on the above table about questions belonging to a SurveyId or not
+#		for index, row in QuestionQueryTable.iterrows():
+		
+#			currentSurveyIdInQuestion, currentQuestionId, currentInSurvey = row["SurveyId"], row["QuestionId"], row["InSurvey"]
+		
+#			# if the question does not belong to the Survey, then the column Question<ID> = Null
+#			if currentInSurvey == 0:
+#				strColumnsQueryPart += strQueryTemplateForNullColumn.replace('<QUESTION_ID>',str(currentQuestionId))
+		
+#			# if the question belongs to the Survey, then the column Question<ID> should be populated with the proper value
+#			else:
+#				strColumnsQueryPart += strQueryTemplateForAnswerQuery.replace('<QUESTION_ID>', str(currentQuestionId))
+		
+#			# Add a coma only for all iterations in the loop except the last one
+#			if index < QuestionQueryTable.shape[0] -1:
+#				strColumnsQueryPart = strColumnsQueryPart + ' , ' 
 
-#			OPEN currentQuestionCursor;
-#			-- Remember to follow the order of the resultset heading
-#			FETCH NEXT FROM currentQuestionCursor INTO	@currentSurveyIdInQuestion,
-#														@currentQuestionId,
-#														@currentInSurvey;
-			
-#			DECLARE @strColumnsQueryPart nvarchar(max);
-#			--Remember that in all algorithms involving string concatenation
-#			-- the inital string variable must be initialised to the empty string
-#			SET @strColumnsQueryPart = '';
-	strColumnsQueryPart = ""
+#	#			--Now, all the SQL for the question columns is in  @strColumnsQueryPart
+#	#			-- We need to build the outer SQL for the current Survey, from the template
+
+#	#			--Back in the outer loop, over the surveys
 	
-	for index, row in QuestionQueryTable.iterrows():
-		#print(row)
-		currentSurveyIdInQuestion, currentQuestionId, currentInSurvey = row["SurveyId"], row["QuestionId"], row["InSurvey"]
-		print(currentSurveyIdInQuestion)
-		print(currentQuestionId)
-		print(currentInSurvey)
+#		# Replace <DYNAMIC_QUESTION_ANSWERS> in the initial query
+#		strCurrentUnionQueryBlock = strQueryTemplateForOuterUnionQuery.replace("<DYNAMIC_QUESTION_ANSWERS>",strColumnsQueryPart)
+	
+#		# Replace <SURVEY_ID> in the initial query
+#		strCurrentUnionQueryBlock = strCurrentUnionQueryBlock.replace('<SURVEY_ID>', str(currentSurveyId))
 
-#			WHILE @@FETCH_STATUS = 0
-#			-- The "global" variable @@FETCH_STATUS is now "localised" to the last call of FETCH NEXT
-#			BEGIN
-#				-- This loop iterates over the resultset indicating whether a question is member of
-#				-- the current survey, thanks to the bound local variable @currentInSurvey
+#		# Query for the specific SurveyId			
+#		strFinalQuery = strFinalQuery + strCurrentUnionQueryBlock
+	
+#		# Add UNION for all the iterations of the loops over the SurveyId, except the last one
+#		if indexSurveyCurrent < SurveyCurrent.shape[0] - 1:
+#			strFinalQuery += ' UNION '
 
-#				IF @currentInSurvey = 0
-#				-- Current Question NOT in Current Survey
-#					BEGIN
-#						--Use our SQL templates to proceed with text replacement
-#						SET @strColumnsQueryPart = @strColumnsQueryPart 
-#							+ REPLACE(@strQueryTemplateForNullColumn
-#									, '<QUESTION_ID>', @currentQuestionId);
-#					END
-		if currentInSurvey == 0:
-			strColumnsQueryPart += strQueryTemplateForNullColumn.replace('<QUESTION_ID>',str(currentQuestionId))
-			#print(strColumnsQueryPart)
+#	return strFinalQuery
 
-		else:
-			strColumnsQueryPart += strQueryTemplateForAnswerQuery.replace('<QUESTION_ID>', str(currentQuestionId))
-			#print(strColumnsQueryPart)
-			
-#				ELSE
-#				-- Current Question in Current Survey
-#					BEGIN
-#						SET @strColumnsQueryPart = @strColumnsQueryPart
-#							+ REPLACE(@strQueryTemplateForAnswerQuery
-#								, '<QUESTION_ID>', @currentQuestionId);
-
-#						-- This would be ok, but no need to replace the marker <SURVEY_ID> now
-#						-- as there will be a global replacement when we have finished to build
-#						-- the whole query block to be UNIONed
-#							-- SET @strColumnsQueryPart = REPLACE(@strColumnsQueryPart
-#							--		, '<SURVEY_ID>', @currentSurveyId);
-#					END
-
-				
-#				FETCH NEXT FROM currentQuestionCursor INTO	@currentSurveyIdInQuestion,
-#														@currentQuestionId,
-#														@currentInSurvey;
-		if index < QuestionQueryTable.shape[0] -1:
-			strColumnsQueryPart = strColumnsQueryPart + ' , ' 
-#				-- Column list construction
-#				-- A comma must be placed after the last block, as long as
-#				-- a next row is to be read by the cursor
-#				-- We still have question columns to add
-#				IF @@FETCH_STATUS = 0
-#				BEGIN
-#					-- After the FETCH NEXT, is there a row to read following? Yes, we put a comma
-#					SET @strColumnsQueryPart = @strColumnsQueryPart + ' , ' ;
-#				END;
-
-
-#			END; -- end of while over currentQuestionCursor
-
-#			CLOSE currentQuestionCursor;
-#			DEALLOCATE currentQuestionCursor;
-
-#			--Now, all the SQL for the question columns is in  @strColumnsQueryPart
-#			-- We need to build the outer SQL for the current Survey, from the template
-
-#			--Back in the outer loop, over the surveys
-
-#			SET @strCurrentUnionQueryBlock = REPLACE(@strQueryTemplateForOuterUnionQuery
-#											, '<DYNAMIC_QUESTION_ANSWERS>'
-#											, @strColumnsQueryPart);
-	strCurrentUnionQueryBlock = strQueryTemplateForOuterUnionQuery.replace("<DYNAMIC_QUESTION_ANSWERS>",strColumnsQueryPart)
-#			
-#			SET @strCurrentUnionQueryBlock =  REPLACE(@strCurrentUnionQueryBlock
-#											  , '<SURVEY_ID>'
-#											  , @currentSurveyId);
-	strCurrentUnionQueryBlock = strCurrentUnionQueryBlock.replace('<SURVEY_ID>', str(currentSurveyId))
-			
-#			SET @strFinalQuery = @strFinalQuery +  @strCurrentUnionQueryBlock
-	strFinalQuery = strFinalQuery + strCurrentUnionQueryBlock
-#		FETCH NEXT FROM surveyCursor INTO @currentSurveyId;
-
-#		IF @@FETCH_STATUS = 0
-#		BEGIN
-#			-- There's more surveys to read
-#			SET @strFinalQuery = @strFinalQuery + ' UNION ' ;
-#		END;
-	if indexSurveyCurrent < SurveyCurrent.shape[0] - 1:
-		strFinalQuery += ' UNION '
-
-#	END; --end of while over surveyCursor
-
-#	CLOSE surveyCursor;
-#	DEALLOCATE surveyCursor;
-
-print(strFinalQuery)
-#	RETURN @strFinalQuery;
-
-result = ft.queryDB(connDetails, strFinalQuery)
+result = ft.queryDB(connDetails, ft.createDynamicQueryForView(connDetails) )
 
 print(result.head(4))
 
 print(result.shape)
+
+

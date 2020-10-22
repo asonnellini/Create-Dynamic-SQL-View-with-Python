@@ -38,21 +38,13 @@ connDetails = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE
 DirStore = "C:\\Users\\Andrea\\Desktop\\StoreCsvDir"
 SurveyStructurePastFile = "SurveyStructure.pkl"
 
-######### OPEN CONNECTION TO DB
-
-cnxn = ft.openDb(connDetails)
-
-logging.info("Connection with {0} open".format(database))
-
 
 ########### DOWNLOAD SurveyStructure
 
 logging.info("Downloading Table SurveyStructure")
 
-SurveyStructureCurrent = ft.SQLTableToDf(database, cnxn, "SurveyStructure", ["SurveyId", "QuestionId", "OrdinalValue" ])
+SurveyStructureCurrent = ft.SQLTableToDf(connDetails, "SurveyStructure", ["SurveyId", "QuestionId", "OrdinalValue" ])
 
-#close connection
-cnxn.close()
 
 #print(SurveyStructureDf.head(3))
 
