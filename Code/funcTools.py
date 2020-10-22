@@ -10,6 +10,9 @@ import logging
 
 import os
 
+import pickle
+
+
 def openDb(connDetails:str):
     """This function opens the connection to the Database
     
@@ -112,24 +115,29 @@ def isFileHere(DirStore:str, fileName:str) -> bool:
 
     return fileName in fileList
 
-def safeOpenFile(DirStore:str, fileName:str):
+
+def safeOpenPkl(DirStore:str, fileName:str):
     """ 
     This function safely opens fileName in the folder DirStore, and returns its content
     Input:
         - DirStore: path of the directory that should have the pkl file
         - fileName: name of the pkl file that saves the SurveyStructure from previous runs 
     Output:
-        - contentFile: content of the file
+        - result: content of the file
 
     """
+    result = None
     try:
-        with open(os.path.join(DirStore, fileName)) as f:
-            contentFile = f.read()
-
+        with open(os.path.join(DirStore,fileName),'rb') as f:
+            result = pickle.load(f)
     except Exception as ex:     
-        logging.critical(f"Cannot open file {SurveyStructureFile}")
+        logging.critical(f"Cannot open file {fileName}")
+        logging.critical(ex)
+        result = None
 
-    return contentFile
+    logging.info(f"{fileName} Successfully loaded")
+
+    return result
 
 
 def isViewFresh(DirStore:str, fileName:str, SurveyStructureDf: pd.DataFrame) -> bool:
@@ -141,7 +149,7 @@ def isViewFresh(DirStore:str, fileName:str, SurveyStructureDf: pd.DataFrame) -> 
     Input:
         - DirStore: path of the directory that should have the pkl file
         - fileName: name of the pkl file that saves the SurveyStructure from previous runs
-        - SurveyStructureCurrent: dataframe 
+        - SurveyStructureCurrent: dataframe with the current snapshot of SurveyStructure
     
     Output:
         - True means that the View is fresh and there is no need to create or alter it
@@ -153,17 +161,29 @@ def isViewFresh(DirStore:str, fileName:str, SurveyStructureDf: pd.DataFrame) -> 
     #if the pkl file named fileName with the snapshot of SurveyStructure from a previous run exists in DirStore
     if isFileHere(DirStore, fileName):
         
+        logging.info(f"Comparing current snapshot of SurveyStructure with the previous one saved in {fileName}")
+
         # open the file
-        SurveyStructurePast = safeOpenFile(DirStore, fileName)
+        SurveyStructurePast = safeOpenPkl(DirStore, fileName)
 
         # and if the snapshot of SurveyStructure from a previous run is identical to the current snapshot, then result = True 
         result = SurveyStructureDf.equals(SurveyStructurePast)
+
+        if result == True: logging.info("No changes on SurveyStructure - the view vw_AllSurveyData is already up-to-date") 
+
+        else: logging.info("SurveyStructure outdated... refreshing the view vw_AllSurveyData")
 
     return result
 
 def createDynamicQueryForView(connDetails:str) -> str:
     """
-    
+    Create the Dynamic Query for the View 
+
+    Input:
+        - connDetails: connection string for pyodbc in a safe way, i.e. with try except mechanism
+
+    Output:
+        - strFinalQuery: the final query for the view
     """
     
     #Download the content of Survey
@@ -209,10 +229,10 @@ def createDynamicQueryForView(connDetails:str) -> str:
     for indexSurveyCurrent, rowSurveyId in SurveyCurrent.iterrows():
 
 		# Extract only the field SurveyId
-	    currentSurveyId = rowSurveyId["SurveyId"]
-	
+        currentSurveyId = rowSurveyId["SurveyId"]
+
 		# Query to mark with 1 Questions belonging to Survey currentSurveyId, 0 otherwise
-	    currentQuestionQuery =	""" SELECT *
+        currentQuestionQuery =	""" SELECT *
 						FROM
 						(
 							SELECT
@@ -238,48 +258,140 @@ def createDynamicQueryForView(connDetails:str) -> str:
 							)
 						) as t
 						ORDER BY QuestionId; """
-	
-	    currentQuestionQuery = currentQuestionQuery.replace("@currentSurveyId", str(currentSurveyId))
+
+        currentQuestionQuery = currentQuestionQuery.replace("@currentSurveyId", str(currentSurveyId))
 
 		# Run the query
-	    QuestionQueryTable = queryDB(connDetails, currentQuestionQuery)
-	
-	    strColumnsQueryPart = ""
-	
+        QuestionQueryTable = queryDB(connDetails, currentQuestionQuery)
+
+        strColumnsQueryPart = ""
+
 		# loop on the above table about questions belonging to a SurveyId or not
-	    for index, row in QuestionQueryTable.iterrows():
-		
-		    currentSurveyIdInQuestion, currentQuestionId, currentInSurvey = row["SurveyId"], row["QuestionId"], row["InSurvey"]
-		
+        for index, row in QuestionQueryTable.iterrows():
+
+            currentSurveyIdInQuestion, currentQuestionId, currentInSurvey = row["SurveyId"], row["QuestionId"], row["InSurvey"]
+
 			# if the question does not belong to the Survey, then the column Question<ID> = Null
-		    if currentInSurvey == 0:
-			    strColumnsQueryPart += strQueryTemplateForNullColumn.replace('<QUESTION_ID>',str(currentQuestionId))
-		
+            if currentInSurvey == 0:
+                strColumnsQueryPart += strQueryTemplateForNullColumn.replace('<QUESTION_ID>',str(currentQuestionId))
+
 			# if the question belongs to the Survey, then the column Question<ID> should be populated with the proper value
-		    else:
-			    strColumnsQueryPart += strQueryTemplateForAnswerQuery.replace('<QUESTION_ID>', str(currentQuestionId))
-		
+            else:
+                strColumnsQueryPart += strQueryTemplateForAnswerQuery.replace('<QUESTION_ID>', str(currentQuestionId))
+
 			# Add a coma only for all iterations in the loop except the last one
-		    if index < QuestionQueryTable.shape[0] -1:
-			    strColumnsQueryPart = strColumnsQueryPart + ' , ' 
+            if index < QuestionQueryTable.shape[0] -1:
+                strColumnsQueryPart = strColumnsQueryPart + ' , ' 
 
 	#			--Now, all the SQL for the question columns is in  @strColumnsQueryPart
 	#			-- We need to build the outer SQL for the current Survey, from the template
 
 	#			--Back in the outer loop, over the surveys
-	
+
 		# Replace <DYNAMIC_QUESTION_ANSWERS> in the initial query
-	    strCurrentUnionQueryBlock = strQueryTemplateForOuterUnionQuery.replace("<DYNAMIC_QUESTION_ANSWERS>",strColumnsQueryPart)
-	
+        strCurrentUnionQueryBlock = strQueryTemplateForOuterUnionQuery.replace("<DYNAMIC_QUESTION_ANSWERS>",strColumnsQueryPart)
+
 		# Replace <SURVEY_ID> in the initial query
-	    strCurrentUnionQueryBlock = strCurrentUnionQueryBlock.replace('<SURVEY_ID>', str(currentSurveyId))
+        strCurrentUnionQueryBlock = strCurrentUnionQueryBlock.replace('<SURVEY_ID>', str(currentSurveyId))
 
 		# Query for the specific SurveyId			
-	    strFinalQuery = strFinalQuery + strCurrentUnionQueryBlock
-	
+        strFinalQuery = strFinalQuery + strCurrentUnionQueryBlock
+
 		# Add UNION for all the iterations of the loops over the SurveyId, except the last one
-	    if indexSurveyCurrent < SurveyCurrent.shape[0] - 1:
-		    strFinalQuery += ' UNION '
+        if indexSurveyCurrent < SurveyCurrent.shape[0] - 1:
+            strFinalQuery += ' UNION '
 
     return strFinalQuery
 
+
+
+def createOrAlterView(viewQuery:str, connDetails:str) -> None:
+    """
+    This function creates a view according to the SQL query in viewQuery
+    
+    Input:
+        - viewQuery: query to build the view
+        - connDetails: connection string for pyodbc in a safe way, i.e. with try except mechanism
+    """
+    # Create view statement
+    createViewStatement = ' CREATE OR ALTER VIEW vw_AllSurveyData AS ' + viewQuery
+
+    # open DB connection
+    cnxn = openDb(connDetails)
+
+    # Create cursor
+    cursor = cnxn.cursor()
+
+    logging.info("Refreshing the view vw_AllSurveyData...")
+
+    # execute statement
+    try:
+        cursor.execute(createViewStatement)
+    except Exception as ex:
+        logging.critical("Cannot Create or Refresh the view vw_AllSurveyData")
+    
+    # commit the changes done within the connection cnxn
+    cnxn.commit()
+
+    logging.info("View vw_AllSurveyData refreshed")
+
+    cnxn.close()
+
+
+def saveDfOnCsv(DirStore:str, fileName:str, inputDf:pd.DataFrame) -> None:
+    """
+    This function saves the dataframe inputDf into a csv file named filename in the folder pointed by DirStore
+
+    Input:
+        - DirStore: path of the directory that should have the pkl file
+        - fileName: name of the pkl file that saves the SurveyStructure from previous runs
+        - inputDf: dataframe to be saved
+    """
+
+    try:
+        
+        with open(os.path.join(DirStore,fileName), 'w', newline="") as f:
+            inputDf.to_csv(f, index = False)
+    except Exception as ex:
+        logging.critical(f"Cannot save the view vw_AllSurveyData in the csv file {fileName}")
+
+
+def saveDfOnPkl(DirStore:str, fileName:str, inputDf:pd.DataFrame) -> None:
+    """
+    This function saves the dataframe inputDf into a pkl file named filename in the folder pointed by DirStore
+
+    Input:
+        - DirStore: path of the directory that should have the pkl file
+        - fileName: name of the pkl file that saves the SurveyStructure from previous runs
+        - inputDf: dataframe to be saved
+    """
+    try:
+        with open(os.path.join(DirStore,fileName), 'wb') as f:
+            pickle.dump(inputDf,f)
+    except Exception as ex:
+        logging.critical(f"Cannot save the snapshot of SurveyStructure in the pkl file {fileName}")
+        logging.critical(ex)
+
+    logging.info(f"Snapshot of SurveyStructure saved on {fileName}")
+
+
+
+
+
+#def saveView(DirStore:str, fileName:str, connDetails:str) -> str:
+#    """
+#    This function stores in a csv file the content of the view vw_AllSurveyData
+
+#    Input:
+#        - DirStore: path of the directory that should have the pkl file
+#        - fileName: name of the pkl file that saves the SurveyStructure from previous runs
+#        - connDetails: connection string for pyodbc in a safe way, i.e. with try except mechanism
+#    Outpu:
+#        - 
+#    """
+
+#    # open DB connection
+    
+#    viewDf = SQLTableToDf(connDetails, "vw_AllSurveyData", ["SurveyId"])
+
+#    saveDfOnCsv(DirStore, fileName, viewDf)
