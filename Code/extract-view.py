@@ -17,7 +17,7 @@ requirements = ["logging","argparse", "pandas", "pyodbc", "os", "pickle", "crypt
 
 import sys
 import subprocess
-import pkg_resources
+#import pkg_resources
 
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
@@ -119,30 +119,3 @@ logging.info(f"The up-to-date snapshot of vw_AllSurveyData has been saved to {vi
 
 ############################# END SCRIPT #############################
 
-
-
-
-
-
-
-
-############
-
-#Check if package is installed, if not install it
-
-#import importlib.util
-#import sys
-
-## For illustrative purposes.
-#name = 'itertools'
-
-#if name in sys.modules:
-#    print(f"{name!r} already in sys.modules")
-#elif (spec := importlib.util.find_spec(name)) is not None:
-#    # If you choose to perform the actual import ...
-#    module = importlib.util.module_from_spec(spec)
-#    sys.modules[name] = module
-#    spec.loader.exec_module(module)
-#    print(f"{name!r} has been imported")
-#else:
-#    print(f"can't find the {name!r} module")

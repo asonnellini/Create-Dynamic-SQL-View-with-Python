@@ -1,6 +1,3 @@
-# Functions
-
-#Modules
 
 import pyodbc 
 
@@ -15,6 +12,9 @@ import pickle
 import sys
 
 import scriptTools.ContentObfuscation as co
+
+
+######################### FUNCTIONS ########################
 
 def openDb(connDetails:str):
     """This function opens the connection to the Database
