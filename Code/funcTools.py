@@ -26,6 +26,7 @@ def openDb(connDetails:str):
         - cnxn: output of pyodbc.connect
 
     """
+    #logging.info("Connecting to Database...")
 
     try:
         # open connection with the database
@@ -33,7 +34,7 @@ def openDb(connDetails:str):
     
     except Exception as ex:
         
-        logging.critical("Cannot connect to the Database specified in the pyodb connection string.".format(connDetails))
+        logging.critical("Cannot connect to the Database - please check database connection details.")
         logging.critical(ex)
         sys.exit(-1)
 
@@ -79,6 +80,8 @@ def SQLTableToDf(connDetails:str, TableName:str, orderBy:str = None) -> pd.DataF
     # Open connection
     cnxn = openDb(connDetails)
     
+    logging.info(f"Downloading snapshot of {TableName}")
+
     #Initialize SQLdf
     SQLdf = None
 

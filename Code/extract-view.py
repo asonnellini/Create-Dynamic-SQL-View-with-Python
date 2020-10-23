@@ -9,76 +9,83 @@
 #   - UPDATE SurveyStructure SET QuestionId = 2 WHERE SurveyId = 3 AND QuestionId = 1 AND OrdinalValue = 1 ==> upon running the script, ANS_Q1 was 10 and ANS_Q2 was NULL, now they are NULL and -1 OK!
 
 
+
+
+############################# MODULES #############################
+
+#import subprocess
+#import sys
+
+#def install(package):
+#    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+
 # manage the logging of events
 import logging
 
+# To pass arguments from command line
 import argparse
-
-##https://docs.python.org/3/howto/argparse.html
-#parser = argparse.ArgumentParser(description = "This script dumps on a csv file the up-to-date snapshot of the view vw_AllSurveyData")
-
-#parser.add_argument("--server", help="Server that hosts the DB",
-#                    type=str, default = 'DESKTOP-DNQ8B1C')
-
-#parser.add_argument("--DB", help="Name of the Database to connect to",
-#                    type=str, default = 'Survey_Sample_A18')
-
-#parser.add_argument("--user", help="User to connect with to the Database",
-#                    type=str)
-
-#parser.add_argument("--pwd", help="Password to connect with to the Database",
-#                    type=str )
-
-#parser.add_argument("--DirStore", help="Directory on the local machine that hosts the pkl file with previous snapshots of the SurveryStructure table and where the snapshot of the view vw_AllSurveyData will be dumped",
-#                    type=str, default = "C:\\Users\\Andrea\\Desktop\\StoreCsvDir")
-
-#parser.add_argument("--oldSnap", help="The name of the pkl file with previous snapshots of the SurveryStructure table",
-#                    type=str, default = "SurveyStructure.pkl")
-
-#parser.add_argument("--csv", help="The name of the csv file that has a snapshot of the vw_AllSurveyData view",
-#                    type=str, default = "SurveyOutcome.csv")
-
-
-#args = parser.parse_args()
-##print(args.square**2)
-
-
-
 
 # pandas for Dataframes
 import pandas as pd
 
+# to load functions from funcTools.py
 import funcTools as ft
 
+# to load functions 
 import ContentObfuscation as co
 
 # Format properly the logging messages
 logging.basicConfig(format='%(levelname)s:%(message)s', level= getattr(logging, "INFO")  )
 
 
-######### CONNECTION DETAILS
-server = 'DESKTOP-DNQ8B1C' 
-database = 'Survey_Sample_A18' 
-username = 'sa' 
-password = 'sonne4ever' 
+############################# ARGUMENTS PASSED TO THE SCRIPT #############################
 
-connDetails = co.obfuscate('DRIVER={ODBC Driver 17 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
+parser = argparse.ArgumentParser(description = "This script dumps on a csv file the up-to-date snapshot of the view vw_AllSurveyData")
+
+parser.add_argument("user", help="User to connect with to the Database",
+                    type=str)
+
+parser.add_argument("pwd", help="Password to connect with to the Database",
+                    type=str )
+
+parser.add_argument("--server", help="Server that hosts the DB - default: localhost",
+                    type=str, default = 'localhost')
+
+parser.add_argument("--DB", help="Name of the Database to connect to - default: Survey_Sample_A18",
+                    type=str, default = 'Survey_Sample_A18')
+
+parser.add_argument("--DirStore", help="Directory on the local machine that hosts the pkl file with previous snapshots of the SurveryStructure table and where the snapshot of the view vw_AllSurveyData will be dumped - default: C:\\Users\\Andrea\\Desktop\\StoreCsvDir",
+                    type=str, default = "C:\\Users\\Andrea\\Desktop\\StoreCsvDir")
+
+parser.add_argument("--oldSnap", help="The name of the pkl file with previous snapshots of the SurveryStructure table - default: SurveyStructure.pkl",
+                    type=str, default = "SurveyStructure.pkl")
+
+parser.add_argument("--csv", help="The name of the csv file that has a snapshot of the vw_AllSurveyData view - default: SurveyOutcome.csv",
+                    type=str, default = "SurveyOutcome.csv")
 
 
-######### CSV DIRECTORY LOCATION FOR SurveyStructure
-
-DirStore = "C:\\Users\\Andrea\\Desktop\\StoreCsvDir"
-SurveyStructurePastFile = "SurveyStructure.pkl"
-viewCsv = "SurveyOutcome.csv"
+args = parser.parse_args()
 
 
-########### DOWNLOAD SurveyStructure
+############################# CONNECTION DETAILS ################################
 
-logging.info("Downloading snapshot of SurveyStructure")
+connDetails = co.obfuscate('DRIVER={ODBC Driver 17 for SQL Server};SERVER=' + args.server + ';DATABASE=' + args.DB + ';UID=' + args.user + ';PWD=' + args.pwd)
+
+
+################### CSV DIRECTORY LOCATION FOR SurveyStructure ###################
+
+DirStore = args.DirStore
+SurveyStructurePastFile = args.oldSnap
+viewCsv = args.csv
+
+
+########################### DOWNLOAD SurveyStructure #############################
 
 SurveyStructureCurrent = ft.SQLTableToDf(connDetails, "SurveyStructure", ["SurveyId", "QuestionId", "OrdinalValue" ])
 
-########### CHECK WHETHER THE VIEW IS UP-TO-DATE - if not, refresh the view
+
+########### CHECK WHETHER THE VIEW IS UP-TO-DATE - if not, refresh the view #############################
 
 if ft.isViewFresh(DirStore, SurveyStructurePastFile, SurveyStructureCurrent) == False:
 
@@ -92,14 +99,14 @@ if ft.isViewFresh(DirStore, SurveyStructurePastFile, SurveyStructureCurrent) == 
     # create/refresh the view
     ft.createOrAlterView(queryView, connDetails)
 
-# Extract the data from the view
+############################# Extract the data from the view #############################
 viewDf = ft.SQLTableToDf(connDetails, "vw_AllSurveyData", ["SurveyId"])
 
 ft.saveDfOnCsv(DirStore, viewCsv, viewDf)
 
-logging.info(f"The up-to-date pivoted outcome of Surveys has been saved to {viewCsv}")
+logging.info(f"The up-to-date snapshot of vw_AllSurveyData has been saved to {viewCsv}")
 
-
+############################# END SCRIPT #############################
 
 
 

@@ -1,6 +1,7 @@
 import cryptography.fernet as f
 import base64
 
+
 FernetKey = b'dHBOVFNaZ0tfV2ctY1ZqN1NVSG5ZekdZY2xlOGw1MkR3Y2RZR2JFWDdYVT0='
 
 obfuscator = f.Fernet(base64.b64decode(FernetKey))
