@@ -1,12 +1,12 @@
-## TO DO
-
-# EXIT FROM PROGRAM IN CASE CANNOT CONNECT TO DB
-
-# EXIT IF YOU CANNOT SAVE THE CSV
-
-# IN CASE YOU CANNOT SAVE PKL JUST STATE A WARNING AND SUPPRESS "SUCCESSFUL MESSAGES"
-
-# IN CASE YOU CANNOT READ THE PKL JUST STATE A WARNING AND SUPPRESS "SUCCESSFUL MESSAGES"
+# Test scenario:
+# - cannot open the connection with DB ==> raise critical message + exit script
+# - cannot save the view in the csv ==> raise critical error + exit
+# - cannot load the pkl file ==> raise a warning messag and continue refreshing the view
+# - cannot save the pkl file ==> raise a warning messag and continue 
+# - change the SurveyStructure Table with:
+#   - INSERT INTO SurveyStructure (SurveyId, QuestionId, OrdinalValue) VALUES	(3, 2, 1) ==> upon running the script, the column ANS_Q2 of the view changed from NULL to -1 = View was updated = OK
+#   - DELETE FROM SurveyStructure WHERE SurveyId = 3 AND QuestionId = 2 AND OrdinalValue = 1 ==> upon running the script, the column ANS_Q2 of the view changed from -1 to NULL = View was updated = OK
+#   - UPDATE SurveyStructure SET QuestionId = 2 WHERE SurveyId = 3 AND QuestionId = 1 AND OrdinalValue = 1 ==> upon running the script, ANS_Q1 was 10 and ANS_Q2 was NULL, now they are NULL and -1 OK!
 
 
 # manage the logging of events
@@ -14,18 +14,43 @@ import logging
 
 import argparse
 
-#https://docs.python.org/3/howto/argparse.html
-#parser = argparse.ArgumentParser()
-#parser.add_argument("square", help="display a square of a given number",
-#                    type=int)
+##https://docs.python.org/3/howto/argparse.html
+#parser = argparse.ArgumentParser(description = "This script dumps on a csv file the up-to-date snapshot of the view vw_AllSurveyData")
+
+#parser.add_argument("--server", help="Server that hosts the DB",
+#                    type=str, default = 'DESKTOP-DNQ8B1C')
+
+#parser.add_argument("--DB", help="Name of the Database to connect to",
+#                    type=str, default = 'Survey_Sample_A18')
+
+#parser.add_argument("--user", help="User to connect with to the Database",
+#                    type=str)
+
+#parser.add_argument("--pwd", help="Password to connect with to the Database",
+#                    type=str )
+
+#parser.add_argument("--DirStore", help="Directory on the local machine that hosts the pkl file with previous snapshots of the SurveryStructure table and where the snapshot of the view vw_AllSurveyData will be dumped",
+#                    type=str, default = "C:\\Users\\Andrea\\Desktop\\StoreCsvDir")
+
+#parser.add_argument("--oldSnap", help="The name of the pkl file with previous snapshots of the SurveryStructure table",
+#                    type=str, default = "SurveyStructure.pkl")
+
+#parser.add_argument("--csv", help="The name of the csv file that has a snapshot of the vw_AllSurveyData view",
+#                    type=str, default = "SurveyOutcome.csv")
+
+
 #args = parser.parse_args()
-#print(args.square**2)
+##print(args.square**2)
+
+
+
 
 # pandas for Dataframes
 import pandas as pd
 
 import funcTools as ft
 
+import ContentObfuscation as co
 
 # Format properly the logging messages
 logging.basicConfig(format='%(levelname)s:%(message)s', level= getattr(logging, "INFO")  )
@@ -37,7 +62,8 @@ database = 'Survey_Sample_A18'
 username = 'sa' 
 password = 'sonne4ever' 
 
-connDetails = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password
+connDetails = co.obfuscate('DRIVER={ODBC Driver 17 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
+
 
 ######### CSV DIRECTORY LOCATION FOR SurveyStructure
 
@@ -52,12 +78,11 @@ logging.info("Downloading snapshot of SurveyStructure")
 
 SurveyStructureCurrent = ft.SQLTableToDf(connDetails, "SurveyStructure", ["SurveyId", "QuestionId", "OrdinalValue" ])
 
-########### CHECK WHETHER THE VIEW IS UP-TO-DATE
+########### CHECK WHETHER THE VIEW IS UP-TO-DATE - if not, refresh the view
 
 if ft.isViewFresh(DirStore, SurveyStructurePastFile, SurveyStructureCurrent) == False:
 
-    logging.info("View not fresh... Refreshing the view")
-
+    
     #Save the latest SurveyStructure on a pikle file
     ft.saveDfOnPkl(DirStore, SurveyStructurePastFile, SurveyStructureCurrent)
 

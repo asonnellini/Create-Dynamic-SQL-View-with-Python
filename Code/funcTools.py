@@ -12,6 +12,9 @@ import os
 
 import pickle
 
+import sys
+
+import ContentObfuscation as co
 
 def openDb(connDetails:str):
     """This function opens the connection to the Database
@@ -26,17 +29,13 @@ def openDb(connDetails:str):
 
     try:
         # open connection with the database
-        cnxn = pyodbc.connect(connDetails)
+        cnxn = pyodbc.connect(co.deobfuscate(connDetails))
     
     except Exception as ex:
-
-        if type(ex).__name__ == "OperationalError":
-
-            logging.critical("Cannot connect to the Database {0} - please check the odb connection string and/or DB availability.".format(database))
         
-        else:
-
-            logging.critical("Cannot connect to the Database {0}.".format(database))
+        logging.critical("Cannot connect to the Database specified in the pyodb connection string.".format(connDetails))
+        logging.critical(ex)
+        sys.exit(-1)
 
     return cnxn
 
@@ -126,16 +125,20 @@ def safeOpenPkl(DirStore:str, fileName:str):
         - result: content of the file
 
     """
-    result = None
+    result = pd.DataFrame()
+
+    success = True
+
     try:
         with open(os.path.join(DirStore,fileName),'rb') as f:
             result = pickle.load(f)
     except Exception as ex:     
-        logging.critical(f"Cannot open file {fileName}")
-        logging.critical(ex)
-        result = None
+        logging.warning(f"Cannot open file {fileName} - will refresh the view")
+        logging.warning(ex)
+        result = pd.DataFrame()
+        success = False
 
-    logging.info(f"{fileName} Successfully loaded")
+    if success == True: logging.info(f"{fileName} Successfully loaded")
 
     return result
 
@@ -169,9 +172,9 @@ def isViewFresh(DirStore:str, fileName:str, SurveyStructureDf: pd.DataFrame) -> 
         # and if the snapshot of SurveyStructure from a previous run is identical to the current snapshot, then result = True 
         result = SurveyStructureDf.equals(SurveyStructurePast)
 
-        if result == True: logging.info("No changes on SurveyStructure - the view vw_AllSurveyData is already up-to-date") 
+        if result == True: logging.info("No changes on SurveyStructure compared to the previous snapshot - the view vw_AllSurveyData is already up-to-date") 
 
-        else: logging.info("SurveyStructure outdated... refreshing the view vw_AllSurveyData")
+        else: logging.info("The previous snapshot of SurveyStructure is outdated... need to refresh the view vw_AllSurveyData")
 
     return result
 
@@ -328,7 +331,11 @@ def createOrAlterView(viewQuery:str, connDetails:str) -> None:
     try:
         cursor.execute(createViewStatement)
     except Exception as ex:
-        logging.critical("Cannot Create or Refresh the view vw_AllSurveyData")
+        logging.critical(ex)
+        logging.critical("Cannot Create or Refresh the view vw_AllSurveyData - exiting the script")
+        sys.exit(-2)
+
+
     
     # commit the changes done within the connection cnxn
     cnxn.commit()
@@ -353,7 +360,10 @@ def saveDfOnCsv(DirStore:str, fileName:str, inputDf:pd.DataFrame) -> None:
         with open(os.path.join(DirStore,fileName), 'w', newline="") as f:
             inputDf.to_csv(f, index = False)
     except Exception as ex:
+        logging.critical(ex)
         logging.critical(f"Cannot save the view vw_AllSurveyData in the csv file {fileName}")
+        logging.critical(f"please check whether the folder {DirStore} is accessible or the file {fileName} is open - exiting from the script")
+        sys.exit(-3)
 
 
 def saveDfOnPkl(DirStore:str, fileName:str, inputDf:pd.DataFrame) -> None:
@@ -365,14 +375,17 @@ def saveDfOnPkl(DirStore:str, fileName:str, inputDf:pd.DataFrame) -> None:
         - fileName: name of the pkl file that saves the SurveyStructure from previous runs
         - inputDf: dataframe to be saved
     """
+    success = True
+
     try:
         with open(os.path.join(DirStore,fileName), 'wb') as f:
             pickle.dump(inputDf,f)
     except Exception as ex:
-        logging.critical(f"Cannot save the snapshot of SurveyStructure in the pkl file {fileName}")
-        logging.critical(ex)
+        logging.warning(f"Cannot save the snapshot of SurveyStructure in the pkl file {fileName}")
+        logging.warning(ex)
+        success = False
 
-    logging.info(f"Snapshot of SurveyStructure saved on {fileName}")
+    if success == True: logging.info(f"Snapshot of SurveyStructure saved on {fileName}")
 
 
 
