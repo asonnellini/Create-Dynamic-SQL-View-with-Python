@@ -14,7 +14,7 @@ import pickle
 
 import sys
 
-import ContentObfuscation as co
+import scriptTools.ContentObfuscation as co
 
 def openDb(connDetails:str):
     """This function opens the connection to the Database
@@ -34,8 +34,8 @@ def openDb(connDetails:str):
     
     except Exception as ex:
         
-        logging.critical("Cannot connect to the Database - please check database connection details.")
-        logging.critical(ex)
+        logging.error("Cannot connect to the Database - please check database connection details.")
+        logging.error(ex)
         sys.exit(-1)
 
     return cnxn
@@ -97,7 +97,7 @@ def SQLTableToDf(connDetails:str, TableName:str, orderBy:str = None) -> pd.DataF
     try:
         SQLdf = pd.read_sql_query(queryString, cnxn)
     except Exception as ex:
-        logging.critical("Cannot Download Data from the table {0} in the Database {1} with the following query: \n{2}".format( TableName, DBName, queryString ))
+        logging.error("Cannot Download Data from the table {0} in the Database {1} with the following query: \n{2}".format( TableName, DBName, queryString ))
     
     cnxn.close()
 
@@ -113,7 +113,13 @@ def isFileHere(DirStore:str, fileName:str) -> bool:
         - fileName: name of the pkl file that saves the SurveyStructure from previous runs
     """
     # list of files in DirStore
-    fileList = os.listdir(DirStore)
+    try:
+        fileList = os.listdir(DirStore)
+
+    except Exception as ex:
+        logging.critical("Cannot find the folder specified in the flag --DirStore")
+        fileList = []
+        logging.critical(ex)
 
     return fileName in fileList
 
@@ -335,7 +341,7 @@ def createOrAlterView(viewQuery:str, connDetails:str) -> None:
         cursor.execute(createViewStatement)
     except Exception as ex:
         logging.critical(ex)
-        logging.critical("Cannot Create or Refresh the view vw_AllSurveyData - exiting the script")
+        logging.error("Cannot Create or Refresh the view vw_AllSurveyData - exiting the script")
         sys.exit(-2)
 
 
@@ -364,8 +370,8 @@ def saveDfOnCsv(DirStore:str, fileName:str, inputDf:pd.DataFrame) -> None:
             inputDf.to_csv(f, index = False)
     except Exception as ex:
         logging.critical(ex)
-        logging.critical(f"Cannot save the view vw_AllSurveyData in the csv file {fileName}")
-        logging.critical(f"please check whether the folder {DirStore} is accessible or the file {fileName} is open - exiting from the script")
+        logging.error(f"Cannot save the view vw_AllSurveyData in the csv file {fileName}")
+        logging.error(f"please check whether the folder {DirStore} is accessible or the file {fileName} is open - exiting from the script")
         sys.exit(-3)
 
 

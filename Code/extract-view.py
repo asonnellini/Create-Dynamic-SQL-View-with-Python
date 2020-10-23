@@ -8,16 +8,30 @@
 #   - DELETE FROM SurveyStructure WHERE SurveyId = 3 AND QuestionId = 2 AND OrdinalValue = 1 ==> upon running the script, the column ANS_Q2 of the view changed from -1 to NULL = View was updated = OK
 #   - UPDATE SurveyStructure SET QuestionId = 2 WHERE SurveyId = 3 AND QuestionId = 1 AND OrdinalValue = 1 ==> upon running the script, ANS_Q1 was 10 and ANS_Q2 was NULL, now they are NULL and -1 OK!
 
+######################### REQUIRED MODULES ########################
+
+requirements = ["logging","argparse", "pandas", "pyodbc", "os", "pickle", "cryptography", "base64"]
 
 
+############################# INSTALL MISSING MODULES #############################
 
-############################# MODULES #############################
+import sys
+import subprocess
+import pkg_resources
 
-#import subprocess
-#import sys
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
-#def install(package):
-#    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+for module in requirements:
+    try:
+        __import__(module)
+    except:
+        print(f"installing the package {module}")
+        install(module)
+        
+
+############################# LOAD MODULES #############################
+
 
 
 # manage the logging of events
@@ -29,11 +43,8 @@ import argparse
 # pandas for Dataframes
 import pandas as pd
 
-# to load functions from funcTools.py
-import funcTools as ft
-
-# to load functions 
-import ContentObfuscation as co
+# import tools from the folder scriptTools
+import scriptTools as st
 
 # Format properly the logging messages
 logging.basicConfig(format='%(levelname)s:%(message)s', level= getattr(logging, "INFO")  )
@@ -70,7 +81,7 @@ args = parser.parse_args()
 
 ############################# CONNECTION DETAILS ################################
 
-connDetails = co.obfuscate('DRIVER={ODBC Driver 17 for SQL Server};SERVER=' + args.server + ';DATABASE=' + args.DB + ';UID=' + args.user + ';PWD=' + args.pwd)
+connDetails = st.obfuscate('DRIVER={ODBC Driver 17 for SQL Server};SERVER=' + args.server + ';DATABASE=' + args.DB + ';UID=' + args.user + ';PWD=' + args.pwd)
 
 
 ################### CSV DIRECTORY LOCATION FOR SurveyStructure ###################
@@ -82,27 +93,27 @@ viewCsv = args.csv
 
 ########################### DOWNLOAD SurveyStructure #############################
 
-SurveyStructureCurrent = ft.SQLTableToDf(connDetails, "SurveyStructure", ["SurveyId", "QuestionId", "OrdinalValue" ])
+SurveyStructureCurrent = st.SQLTableToDf(connDetails, "SurveyStructure", ["SurveyId", "QuestionId", "OrdinalValue" ])
 
 
 ########### CHECK WHETHER THE VIEW IS UP-TO-DATE - if not, refresh the view #############################
 
-if ft.isViewFresh(DirStore, SurveyStructurePastFile, SurveyStructureCurrent) == False:
+if st.isViewFresh(DirStore, SurveyStructurePastFile, SurveyStructureCurrent) == False:
 
     
     #Save the latest SurveyStructure on a pikle file
-    ft.saveDfOnPkl(DirStore, SurveyStructurePastFile, SurveyStructureCurrent)
+    st.saveDfOnPkl(DirStore, SurveyStructurePastFile, SurveyStructureCurrent)
 
     # Create the query for the view
-    queryView = ft.createDynamicQueryForView(connDetails)
+    queryView = st.createDynamicQueryForView(connDetails)
       
     # create/refresh the view
-    ft.createOrAlterView(queryView, connDetails)
+    st.createOrAlterView(queryView, connDetails)
 
 ############################# Extract the data from the view #############################
-viewDf = ft.SQLTableToDf(connDetails, "vw_AllSurveyData", ["SurveyId"])
+viewDf = st.SQLTableToDf(connDetails, "vw_AllSurveyData", ["SurveyId"])
 
-ft.saveDfOnCsv(DirStore, viewCsv, viewDf)
+st.saveDfOnCsv(DirStore, viewCsv, viewDf)
 
 logging.info(f"The up-to-date snapshot of vw_AllSurveyData has been saved to {viewCsv}")
 
