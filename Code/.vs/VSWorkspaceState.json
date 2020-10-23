@@ -1,7 +1,8 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\scriptTools"
   ],
-  "SelectedNode": "\\extract-view.py",
+  "SelectedNode": "\\scriptTools\\funcTools.py",
   "PreviewInSolutionExplorer": false
 }
