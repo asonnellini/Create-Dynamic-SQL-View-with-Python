@@ -12,13 +12,13 @@ All the scripts are in the folder Code, please see the section below for instruc
 ## How to run the script
 To use the script::
 
-	- ``` git clone https://github.com/asonnellini/Create-Dynamic-SQL-View-with-Python.git ```
-	- ```cd Create-Dynamic-SQL-View-with-Python/Code ```
+	- git clone https://github.com/asonnellini/Create-Dynamic-SQL-View-with-Python.git 
+	- cd Create-Dynamic-SQL-View-with-Python/Code
 	- To have an overview of all the possible flags, their meaning and their default value:
-		- ``` python extract-view.py -h ```
+		- python extract-view.py -h 
 
 	- To run the script:
-		- ``` python extract-view.py <DBuser> <DBpwd> --server <DBServer> --DB <DBName> --DirStore <DirectoryWhereStoreFiles> --oldSnap <NamePklFileWithPreviousSnapSurveyStructure> --csv <CSVNameOutcomeResults>```
+		- python extract-view.py <DBuser> <DBpwd> --server <DBServer> --DB <DBName> --DirStore <DirectoryWhereStoreFiles> --oldSnap <NamePklFileWithPreviousSnapSurveyStructure> --csv <CSVNameOutcomeResults>
 
 		- Note: the non-mandatory flags oldSnap and csv have default values which should be fine in most cases
 
