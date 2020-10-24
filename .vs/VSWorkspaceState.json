@@ -1,6 +1,9 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\Code",
+    "\\Code\\scriptTools"
   ],
+  "SelectedNode": "\\Code\\scriptTools\\funcTools.py",
   "PreviewInSolutionExplorer": false
 }
