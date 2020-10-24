@@ -3,8 +3,10 @@
 
 This repository hosts the python scripts that I produced for the DSTI joint Assignment "software engineering & Data Wrangling".
 
-The script returns in a csv file the content of a Database view that hosts pivoted data about the outcome of a Survey.
-The Database view structure relies on the content of the Table SurveyStructure and, upon running the script, it is refreshed everytime SurveyStructure changed compared to the last time the script was run. This feature emulates the behavior of an SQL Trigger that is designed to be triggered upon UPDATE, DELETE, INSERT  actions on the SurveyStructure Table.
+The target of the assignment is to dump in a csv file the content of a Database View that hosts pivoted data about the outcome of a Survey.
+The Database View relies on the content of the Table SurveyStructure and, upon running the script, it is refreshed everytime SurveyStructure changed compared to the last time the script was run. This feature emulates the behavior of an SQL Trigger that is designed to be triggered upon UPDATE, DELETE, INSERT  actions on the SurveyStructure Table.
+
+All the scripts are in the folder Code, please see the section below for instructions as to how run the script.
 
 
 ## How to run the script
