@@ -18,9 +18,9 @@ def obfuscate(clearText:str):
 
 def deobfuscate(obfText:str):
     """
-    This function obfuscate the input string
+    This function deobfuscate the input string
 
     Input:
-        - obfText: input string to be obfuscated    
+        - obfText: input string to be deobfuscated    
     """
     return (obfuscator.decrypt(obfText.encode())).decode()
