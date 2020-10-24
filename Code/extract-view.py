@@ -1,12 +1,4 @@
-# Test scenario:
-# - cannot open the connection with DB ==> raise critical message + exit script
-# - cannot save the view in the csv ==> raise critical error + exit
-# - cannot load the pkl file ==> raise a warning messag and continue refreshing the view
-# - cannot save the pkl file ==> raise a warning messag and continue 
-# - change the SurveyStructure Table with:
-#   - INSERT INTO SurveyStructure (SurveyId, QuestionId, OrdinalValue) VALUES	(3, 2, 1) ==> upon running the script, the column ANS_Q2 of the view changed from NULL to -1 = View was updated = OK
-#   - DELETE FROM SurveyStructure WHERE SurveyId = 3 AND QuestionId = 2 AND OrdinalValue = 1 ==> upon running the script, the column ANS_Q2 of the view changed from -1 to NULL = View was updated = OK
-#   - UPDATE SurveyStructure SET QuestionId = 2 WHERE SurveyId = 3 AND QuestionId = 1 AND OrdinalValue = 1 ==> upon running the script, ANS_Q1 was 10 and ANS_Q2 was NULL, now they are NULL and -1 OK!
+
 
 ######################### REQUIRED MODULES ########################
 

@@ -22,14 +22,18 @@ To use the script::
 
 	- Note: the non-mandatory flags oldSnap and csv have default values which should be fine in most cases
 
+Assuming default values for the flags --oldSnap and --csv are used, upon execution of the scritp, the following 2 files will be created in the directory specified in the flag --DirStore:
+- SurveyStructure.pkl  --> this file will host the current snapshot of the table SurveyStructure
+- SurveyOutcome.csv --> this file will host the up-to-date content of the view vw_AllSurveyData
 
 
  ## Test scenarios
  
- The robustness of the script has been tested against the below adver scenarios:
+ The robustness of the script has been tested against the below "adverse" scenarios:
  
-- cannot open the connection with DB ==> raise error message + exit script
-- cannot save the view in the csv ==> raise error message + exit
+- cannot connect to the DB ==> raise error message + exit script returning -1
+- cannot execute the "CREATE OR ALTER VIEW" command ==> raise error message + exit script returning -2
+- cannot save the view in the csv ==> raise error message + exit script returning -3
 - cannot load the pkl file ==> raise a warning messag and continue refreshing the view
 - cannot save the pkl file ==> raise a warning messag and continue 
  
