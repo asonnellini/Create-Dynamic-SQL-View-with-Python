@@ -396,24 +396,3 @@ def saveDfOnPkl(DirStore:str, fileName:str, inputDf:pd.DataFrame) -> None:
 
     if success == True: logging.info(f"Snapshot of SurveyStructure saved on {fileName}")
 
-
-
-
-
-#def saveView(DirStore:str, fileName:str, connDetails:str) -> str:
-#    """
-#    This function stores in a csv file the content of the view vw_AllSurveyData
-
-#    Input:
-#        - DirStore: path of the directory that should have the pkl file
-#        - fileName: name of the pkl file that saves the SurveyStructure from previous runs
-#        - connDetails: connection string for pyodbc in a safe way, i.e. with try except mechanism
-#    Outpu:
-#        - 
-#    """
-
-#    # open DB connection
-    
-#    viewDf = SQLTableToDf(connDetails, "vw_AllSurveyData", ["SurveyId"])
-
-#    saveDfOnCsv(DirStore, fileName, viewDf)
