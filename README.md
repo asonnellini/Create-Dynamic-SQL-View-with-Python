@@ -1,13 +1,15 @@
 # Create-Dynamic-SQL-View-with-Python
 
-The target of the assignment is to dump in a csv file the content of a Database View that hosts pivoted data about the outcome of a Survey.
+The target of the scripts in this repository is to dump in a csv file the content of a Database View that hosts pivoted data about the outcome of a Survey.
 The Database View relies on the content of the Table SurveyStructure and, upon running the script, it is refreshed everytime SurveyStructure changed compared to the last time the script was run. This feature emulates the behavior of an SQL Trigger that is designed to be triggered upon UPDATE, DELETE, INSERT  actions on the SurveyStructure Table.
 
 The script is meant to install automatically all needed python modules in case they are installed yet.
 
-All the scripts are in the folder Code, please see the section below for instructions as to how run the script.
+The script is NOT implemented via OOP.
 
-This work was done to complete the DSTI joint Assignment "software engineering & Data Wrangling".
+All the scripts are in the folder Code, please see the section "How to run the script" below for instructions as to how run the script.
+
+This work was done to complete the DSTI joint Assignment "Software Engineering part 2 & Data Wrangling".
 
 
 ## How to run the script
